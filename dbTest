@@ -1,0 +1,213 @@
+/*
+Host: sql4.freemysqlhosting.net
+Database name: sql456218
+Database user: sql456218
+Database password: jJ5!cP7!
+Port number: 3306
+*/
+import de.bezier.data.sql.*;
+
+MySQL msql;
+
+String myDBName;
+String myUser;
+String myPW;
+String myHost;
+int playerXDB = 0;
+String playerDBLocal;
+int playerDBLocalInt;
+int ownID;
+int ownallPlayerID;
+String ownTimeStamp;
+int ownTimeStampInt;
+int allPlayerIDs[] = new int[30];
+playerInfo pI[] = new playerInfo[100];
+int allPlayers = 0;
+doDBStuff db1;
+void setup()
+{
+  smooth();
+  size(400,400);
+  myHost = "sql4.freemysqlhosting.net";
+  myDBName = "sql456218";
+  myUser = "sql456218";
+  myPW = "jJ5!cP7!";
+  msql = new MySQL( this,  myHost, myDBName, myUser, myPW );
+  msql.connect();
+  db1 = new doDBStuff(140);
+  queryOwnID();
+  db1.start();
+
+  
+
+}
+
+class playerInfo
+{
+  int playerX;
+  int playerY = (int) random(30,380);
+  int playerID;
+  playerInfo(int ID)
+  {
+    playerID = ID;
+  }
+  
+}
+
+void draw()
+{
+
+
+ background(44,44,44);
+
+ drawallPlayers();
+
+}
+
+
+void drawallPlayers()
+{
+  for(int i = 0;i<allPlayers;i++)
+  {
+    text(pI[i].playerID,pI[i].playerX,pI[i].playerY);
+    rect(pI[i].playerX,pI[i].playerY,30,30);
+  }
+  
+}
+class doDBStuff extends Thread
+{
+  long minPrime;
+  boolean running; 
+  doDBStuff(long minPrime) 
+  {
+      this.minPrime = minPrime;
+      running = false;
+  }
+ 
+  void start() 
+  {
+    running = true;
+    println("Starting thread (will execute every " + minPrime + " milliseconds.)");
+    super.start();
+  }
+  void quit() 
+  {
+    running = false; 
+    interrupt();
+  }
+  void run () 
+  {
+    while (running)
+    {
+      
+      getallPlayers();
+      readDB();
+      updateDB();
+      
+      
+    }
+    try 
+    {
+      sleep((long)(minPrime));
+    }
+    catch (Exception e) 
+    {
+    }
+  }
+  void getallPlayers()
+  {
+    String date;
+    int idChecker = 0;
+    int dateInt;
+    msql.query( "SELECT * FROM allPlayers");
+    while(msql.next())
+    {
+      date = msql.getString("timeStamp");
+      date = date.substring(11,19);
+      date = date.replace(":","");
+      dateInt = Integer.parseInt(date);
+      
+      if(dateInt < ownTimeStampInt+5 && dateInt > ownTimeStampInt-5)
+      {
+       playerInfo p1 = new playerInfo(msql.getInt("ID"));
+      
+       for(int i = 0;i<allPlayers;i++)
+       {
+         if(pI[i].playerID == p1.playerID)
+         idChecker++;
+       }
+       if(p1.playerID  == ownID && idChecker == 0)
+       {
+         ownallPlayerID = allPlayers;
+       }
+       if(idChecker == 0)
+       {
+         pI[allPlayers] = p1;
+         allPlayers++;
+       }
+       idChecker = 0;
+      } 
+    }
+  }
+  void readDB()
+  {
+   for(int i = 0;i<allPlayers;i++)
+   {
+     msql.query( "SELECT * FROM allPlayers WHERE ID="+ pI[i].playerID);
+     msql.next();
+     pI[i].playerX = msql.getInt("playerX");
+     pI[i].playerY = msql.getInt("playerY");
+     if(i == allPlayers-1)
+     {
+      ownTimeStamp = msql.getString("timeStamp");
+      ownTimeStamp = ownTimeStamp.substring(11,19);
+      ownTimeStamp = ownTimeStamp.replace(":","");
+      ownTimeStampInt = Integer.parseInt(ownTimeStamp);
+     }
+   }
+  }
+  void updateDB()
+  {
+   int speed = 14;
+   if(keyPressed)
+   {
+      if(key == 's')
+      {
+        pI[ownallPlayerID].playerY = pI[ownallPlayerID].playerY+speed; 
+      }
+      if(key == 'w')
+      {
+        pI[ownallPlayerID].playerY = pI[ownallPlayerID].playerY-speed; 
+      }
+      if(key == 'a')
+      {
+        pI[ownallPlayerID].playerX = pI[ownallPlayerID].playerX-speed; 
+      }
+      if(key == 'd')
+      {
+        pI[ownallPlayerID].playerX = pI[ownallPlayerID].playerX+speed; 
+      }
+    }
+    msql.query("UPDATE allPlayers SET timeStamp=NULL,playerX="+pI[ownallPlayerID].playerX+",playerY="+pI[ownallPlayerID].playerY+" WHERE ID = "+ pI[ownallPlayerID].playerID);
+  }
+}
+
+
+
+void queryOwnID()
+{
+  msql.query("SELECT * FROM allPlayers");
+  while (msql.next())
+  {
+    ownID = msql.getInt("ID");
+    ownID++;
+  }
+  msql.query("INSERT INTO allPlayers(timeStamp, playerX, playerY, ID) VALUES (NULL,1,1,"+ownID+")");
+  msql.query( "SELECT * FROM allPlayers WHERE ID ="+ownID);
+  msql.next();
+  ownTimeStamp = msql.getString("timeStamp");
+  ownTimeStamp = ownTimeStamp.substring(11,19);
+  ownTimeStamp = ownTimeStamp.replace(":","");
+  ownTimeStampInt = Integer.parseInt(ownTimeStamp);
+}
+
